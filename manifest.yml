@@ -1,0 +1,32 @@
+display_information:
+  name: slackbot
+features:
+  bot_user:
+    display_name: Sammy
+    always_online: true
+  slash_commands:
+    - command: /emails
+      description: Send an email via Sendgrid
+      usage_hint: "[Your email] [Receiver's email] [Subject] [Message]"
+      should_escape: false
+    - command: /sms
+      description: Send an sms via Twilio
+      usage_hint: "[Your number] [Receiver's number] [Message]"
+      should_escape: false
+    - command: /url
+      description: Presigned URL for Spaces
+      usage_hint: "[Filename] [Request] [Duration]"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - incoming-webhook
+      - commands
+      - chat:write
+      - app_mentions:read
+settings:
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

@@ -1,11 +1,8 @@
-// export SPACES_KEY=XXXXXXXX && export SPACES_SECRET=XXXXXXXXXXXXX
-package main
+package url
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,65 +11,63 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-func UploadURL(sess *session.Session, bucket string, filename string) (string, error) {
+const (
+	// RequestTypeGet is the presigned request type to download a file.
+	RequestTypeGet = "GET"
+	// RequestTypePUT is the presigned request type to upload a file.
+	RequestTypePut = "PUT"
+)
+
+// FindURL configures a client using the key, secret, and region provided in the env file
+// while also taking in a filename and request from the user and returns a presigned
+// url to upload a file or download a file from a DigitalOcean Space or a "failed" string if error.
+func FindURL(filename string, req string, duration string) string {
+	key := os.Getenv("SPACES_KEY")
+	secret := os.Getenv("SPACES_SECRET")
+	bucket := os.Getenv("BUCKET")
+	region := os.Getenv("REGION")
+
+	config := &aws.Config{
+		Credentials: credentials.NewStaticCredentials(key, secret, ""),
+		Endpoint:    aws.String(fmt.Sprintf("%s.digitaloceanspaces.com:443", region)),
+		Region:      aws.String(region),
+	}
+	sess := session.New(config)
+
+	switch req {
+	case RequestTypeGet:
+		return downloadURL(sess, bucket, filename, duration)
+	case RequestTypePut:
+		return uploadURL(sess, bucket, filename, duration)
+	default:
+		return "failed"
+	}
+}
+
+func uploadURL(sess *session.Session, bucket string, filename string, duration string) string {
 	client := s3.New(sess)
+	dur, _ := time.ParseDuration(duration)
 	req, _ := client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(filename),
 	})
-	url, err := req.Presign(10 * time.Minute)
+	url, err := req.Presign(dur)
 	if err != nil {
-		return "", err
+		return "failed"
 	}
-	return url, nil
+	return url
 }
 
-func checkRegion(region string) (string, error) {
-	if region == "San Francisco" || region == "san francisco" || region == "sfo3" {
-		region = "sfo3"
-	} else if region == "Frankfurt" || region == "frankfurt" || region == "fra1" {
-		region = "fra1"
-	} else if region == "Amsterdam" || region == "amsterdam" || region == "ams3" {
-		region = "ams3"
-	} else if region == "New York" || region == "new york" || region == "nyc3" {
-		region = "nyc3"
-	} else if region == "Singapore" || region == "singapore" || region == "sgp1" {
-		region = "sgp1"
-	} else {
-		return "", errors.New("Invalid Region Given.")
-	}
-	return region, nil
-}
-
-func main() {
-	key := os.Getenv("SPACES_KEY")
-	secret := os.Getenv("SPACES_SECRET")
-	bucket := os.Args[1]
-	filename := os.Args[2]
-	reg := os.Args[3:]
-
-	regstr := strings.Join(reg, " ")
-	region, err := checkRegion(regstr)
+func downloadURL(sess *session.Session, bucket string, filename string, duration string) string {
+	client := s3.New(sess)
+	dur, _ := time.ParseDuration(duration)
+	req, _ := client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(filename),
+	})
+	url, err := req.Presign(dur)
 	if err != nil {
-		panic(err)
+		return "failed"
 	}
-
-	config := &aws.Config{
-		Credentials: credentials.NewStaticCredentials(key, secret, ""),
-		Endpoint:    aws.String("https://" + region + ".digitaloceanspaces.com"),
-		Region:      aws.String("us-east-1"),
-	}
-
-	sess := session.New(config)
-	url, err := UploadURL(sess, bucket, filename)
-	if err != nil {
-		fmt.Println("Error retrieving URL: ", err)
-	}
-	fmt.Println("The presigned URL: " + url)
+	return url
 }
-
-// Once you get the url outputed: run this command in terminal
-//curl -X PUT \
-//-H "Content-Type: text" \
-//-d "The contents of the file." \
-// enter presigned url here in "" : "https://slack.nyc3.digitaloceanspaces.com/"

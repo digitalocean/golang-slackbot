@@ -1,0 +1,6 @@
+FROM golang:1.16-alpine
+RUN mkdir /slackbot
+ADD . /slackbot
+WORKDIR /slackbot
+RUN go build -o main .
+CMD ["/slackbot/main"]
