@@ -27,6 +27,10 @@ func FindURL(filename string, req string, duration string) string {
 	bucket := os.Getenv("BUCKET")
 	region := os.Getenv("REGION")
 
+	if duration < 0 {
+		return "failed"
+	}
+
 	config := &aws.Config{
 		Credentials: credentials.NewStaticCredentials(key, secret, ""),
 		Endpoint:    aws.String(fmt.Sprintf("%s.digitaloceanspaces.com:443", region)),

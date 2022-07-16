@@ -2,25 +2,25 @@
 
 ## Introduction: Composed Function
 
-This repository contains a slack bot written in Go. The slack bot uses socketmode and runs indefinitely when hosted somewhere, like Docker & DigitalOcean's Droplets. The slack bot takes in 3 slack commmands: presigned url, twilio sms, and sendgrid email.
+This repository contains a slack bot written in Golang. The slack bot uses socketmode and runs indefinitely when hosted somewhere, like Docker & DigitalOcean's Droplets. The slack bot takes in 3 slash commmands: presigned url, twilio sms, and sendgrid email, which are all explained individually below. It will return back a slack attachment to the channel including either a presigned url, success message, or an error message. 
 
 ### Introduction: 3 Sample Functions
 
-This repository contains a sample presigned URL function written in Go. You are able to choose to get a presigned URL to upload a file to a DigitalOcean Space or to download a file from a DigitalOcean Space. Given the filename, request, and duration, a presigned url gets returned to you or an error message.
+This repository contains a sample presigned URL function written in Golang. You are able to choose to get a presigned URL to upload a file to a DigitalOcean Space or to download a file from a DigitalOcean Space. Given the filename, request (`GET` or `PUT`), and duration (how many seconds/minutes/hours you want the url to be valid for), a presigned url gets returned to you or else an error message.
 
-This repository contains a sample Twilio SMS function written in Python. You are able to send an sms using Twilio verified phone numbers. Given 2 phone numbers and a message, a successful message gets sent back to you or an error message.
+This repository contains a sample Twilio SMS function written in Python. You are able to send an sms using only Twilio verified phone numbers. Given 2 phone numbers and a message, a successful message gets returned or else an error message.
 
-This repository contains a sample Sendgrid Emails function written in Python. You are able to send an email using Sendgrid's API to email addresses with or without DMARCS. Given 2 email addresses, a subject, and a body, a successful message gets sent back to you or an error message.
+This repository contains a sample Sendgrid Emails function written in Python. You are able to send an email using Sendgrid's API to email addresses with or without DMARCS. Given 2 email addresses, a subject, and a body, a successful message gets returned or an else an error message.
 
 ## Requirements
 
 ### Slack Bot
 
-* You need to create a slack app and enable socketmode. You can learn more at https://api.slack.com/apis/connections/socket. 
-* I've attached a `manifest.yml` file if you'd like to set up the app with manifests. The manifest file contains the scopes of the bot you will be adding to allow the bot to read and write to chat as well as accept slash commands.
-* You need to add your `AUTH_TOKEN`, `APP_TOKEN`, and `CHANNEL_ID` to the `.env` file to connect to Slack API as well as your channel that you will be adding the slack bot to.
+* You need to create a slack app and enable SocketMode. You can learn more at https://api.slack.com/apis/connections/socket. 
+* I've attached a `manifest.yml` file if you'd like to set up the app with manifests. The manifest file contains the scopes of the bot you will be adding to allow the bot to read and write to the channel as well as accept slash commands.
+* You need to add your `AUTH_TOKEN`, `APP_TOKEN`, and `CHANNEL_ID` to the `.env` file to connect to the Slack API as well as your channel that you will be adding the slack bot to.
 
-NOTE: If you decide not to use the `manifest.yml` to create an app, here are some things you need to make sure are activate for your app.
+NOTE: If you decide not to use the `manifest.yml` to create an app, here are some things you need to make sure are activated for your app.
 - Activate Socket Mode
 - Activate Interactivity & Shortcuts
 - Activate Incoming Webhooks
@@ -35,7 +35,7 @@ NOTE: If you decide not to use the `manifest.yml` to create an app, here are som
     - `app_mentions:read` : view messages that directly mention your app
     - `chat:write` : send messages via your app
     - `commands` : using slash commands
-    - `incoming-webhook` : post attachments/messages to channels
+    - `incoming-webhook` : post attachments & messages to channels
 
 ### Presigned URL
 
