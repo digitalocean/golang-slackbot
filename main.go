@@ -38,14 +38,12 @@ func main() {
 		for {
 			select {
 			case <-c.Done():
-				log.Println("Socketmode Shut Down.")
 				return
 			case event := <-client.Events:
 				switch event.Type {
 				case socketmode.EventTypeSlashCommand:
 					command, ok := event.Data.(slack.SlashCommand)
 					if !ok {
-						log.Printf("Could not be casted.")
 						continue
 					}
 					client.Ack(*event.Request)
@@ -110,9 +108,7 @@ func handleURL(command slack.SlashCommand, api slack.Client, channelid string) e
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
-	log.Println("HEY1")
 	filename, req, duration := temp[0], temp[1], temp[2]
-	log.Println("HEY2")
 	url := u.FindURL(filename, req, duration)
 	createMessage(url, api, channelid)
 	return nil

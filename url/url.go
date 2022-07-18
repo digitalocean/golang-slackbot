@@ -27,7 +27,11 @@ func FindURL(filename string, req string, duration string) string {
 	bucket := os.Getenv("BUCKET")
 	region := os.Getenv("REGION")
 
-	if duration < 0 {
+	dur, err := time.ParseDuration(duration)
+	if err != nil {
+		return "failed"
+	}
+	if dur < 0 {
 		return "failed"
 	}
 
@@ -40,36 +44,34 @@ func FindURL(filename string, req string, duration string) string {
 
 	switch req {
 	case RequestTypeGet:
-		return downloadURL(sess, bucket, filename, duration)
+		return downloadURL(sess, bucket, filename, dur)
 	case RequestTypePut:
-		return uploadURL(sess, bucket, filename, duration)
+		return uploadURL(sess, bucket, filename, dur)
 	default:
 		return "failed"
 	}
 }
 
-func uploadURL(sess *session.Session, bucket string, filename string, duration string) string {
+func uploadURL(sess *session.Session, bucket string, filename string, duration time.Duration) string {
 	client := s3.New(sess)
-	dur, _ := time.ParseDuration(duration)
 	req, _ := client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(filename),
 	})
-	url, err := req.Presign(dur)
+	url, err := req.Presign(duration)
 	if err != nil {
 		return "failed"
 	}
 	return url
 }
 
-func downloadURL(sess *session.Session, bucket string, filename string, duration string) string {
+func downloadURL(sess *session.Session, bucket string, filename string, duration time.Duration) string {
 	client := s3.New(sess)
-	dur, _ := time.ParseDuration(duration)
 	req, _ := client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(filename),
 	})
-	url, err := req.Presign(dur)
+	url, err := req.Presign(duration)
 	if err != nil {
 		return "failed"
 	}
