@@ -2,7 +2,7 @@
 
 ## Introduction: Composed Function
 
-This repository contains a slack bot written in Golang. The slack bot uses socketmode and will send back a slack attachment to the channel your bot is in with the status code and body of the returned response.
+This repository contains a slack bot written in Golang. The slack bot uses socketmode and will send back a slack attachment to the channel your bot is in with the status code and body of the returned response. You can deploy it on DigitalOcean's App Platform as a Serverless Function component. Documentation is available at https://docs.digitalocean.com/products/functions.
 
 The slack bot takes in 3 slash commmands: presigned url, twilio sms, and sendgrid email. It will return back a slack attachment to the channel including the status code and body, which contains either a success message, error message, or presigned url. 
 
