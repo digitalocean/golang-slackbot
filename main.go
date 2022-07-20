@@ -6,14 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
+	"golang.org/x/sync/errgroup"
 )
 
 // SlackRequest takes in the StatusCode and Content from other functions to display to the user's slack.
@@ -92,6 +95,8 @@ func init() {
 // main configures a client with socketmode and slacks API using the token, app token, and channelid that the slack bot will be in,
 // handles the different slash commands, and returns back a slack attachment with the body returned by the different functions.
 func main() {
+	var eg errgroup.Group
+	logger := logrus.New()
 	api := slack.New(auth_tok, slack.OptionDebug(true), slack.OptionAppLevelToken(app_tok))
 	client := socketmode.New(
 		api,
@@ -101,66 +106,86 @@ func main() {
 	c, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func(c context.Context, api *slack.Client, client *socketmode.Client) error {
-		for {
-			select {
-			case <-c.Done():
-				return nil
-			case event := <-client.Events:
-				switch event.Type {
-				case socketmode.EventTypeSlashCommand:
-					command, ok := event.Data.(slack.SlashCommand)
-					if !ok {
-						continue
-					}
-					client.Ack(*event.Request)
-					var (
-						err          error
-						slackRequest *SlackRequest
-					)
-					switch command.Command {
-					case "/emails":
-						emailResponse, err := handleEmail(command)
+	eg.Go(func() error {
+		go func(c context.Context, api *slack.Client, client *socketmode.Client) error {
+			for {
+				select {
+				case <-c.Done():
+					return nil
+				case event := <-client.Events:
+					switch event.Type {
+					case socketmode.EventTypeSlashCommand:
+						command, ok := event.Data.(slack.SlashCommand)
+						if !ok {
+							continue
+						}
+						client.Ack(*event.Request)
+						var (
+							err          error
+							slackRequest *SlackRequest
+						)
+						switch command.Command {
+						case "/emails":
+							emailResponse, err := handleEmail(command)
+							if err != nil {
+								logger.WithFields(logrus.Fields{
+									"error": err.Error(),
+								}).Error("error handling email response")
+							}
+							bytes, _ := io.ReadAll(emailResponse.Body)
+							slackRequest = &SlackRequest{
+								StatusCode: emailResponse.StatusCode,
+								Content:    string(bytes),
+							}
+						case "/sms":
+							smsResponse, err := handleSMS(command)
+							if err != nil {
+								logger.WithFields(logrus.Fields{
+									"error": err.Error(),
+								}).Error("error handling sms response")
+							}
+							bytes, _ := io.ReadAll(smsResponse.Body)
+							slackRequest = &SlackRequest{
+								StatusCode: smsResponse.StatusCode,
+								Content:    string(bytes),
+							}
+						case "/url":
+							urlResponse, err := handleURL(command)
+							if err != nil {
+								logger.WithFields(logrus.Fields{
+									"error": err.Error(),
+								}).Error("error handling url response")
+							}
+							bytes, _ := io.ReadAll(urlResponse.Body)
+							slackRequest = &SlackRequest{
+								StatusCode: urlResponse.StatusCode,
+								Content:    string(bytes),
+							}
+						default:
+							return nil
+						}
+						err = makeRequest(slackRequest, api)
 						if err != nil {
-							return err
+							logger.WithFields(logrus.Fields{
+								"error": err.Error(),
+							}).Error("error sending slack attachment")
 						}
-						bytes, _ := io.ReadAll(emailResponse.Body)
-						slackRequest = &SlackRequest{
-							StatusCode: emailResponse.StatusCode,
-							Content:    string(bytes),
-						}
-					case "/sms":
-						smsResponse, err := handleSMS(command)
-						if err != nil {
-							return err
-						}
-						bytes, _ := io.ReadAll(smsResponse.Body)
-						slackRequest = &SlackRequest{
-							StatusCode: smsResponse.StatusCode,
-							Content:    string(bytes),
-						}
-					case "/url":
-						urlResponse, err := handleURL(command)
-						if err != nil {
-							return err
-						}
-						bytes, _ := io.ReadAll(urlResponse.Body)
-						slackRequest = &SlackRequest{
-							StatusCode: urlResponse.StatusCode,
-							Content:    string(bytes),
-						}
-					default:
-						return nil
-					}
-					err = makeRequest(slackRequest, api)
-					if err != nil {
-						return err
 					}
 				}
 			}
-		}
-	}(c, api, client)
-	client.Run()
+		}(c, api, client)
+		return nil
+	})
+
+	eg.Go(func() error {
+		client.Run()
+		return nil
+	})
+
+	err := eg.Wait()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func handleEmail(command slack.SlashCommand) (*http.Response, error) {

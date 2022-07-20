@@ -2,7 +2,7 @@ spec:
   alerts:
   - rules: DEPLOYMENT_FAILED
   - rules: DOMAIN_FAILED
-  functions:
+  workers:
   - github:
       branch: main
       deploy_on_push: true
