@@ -69,6 +69,14 @@ type Url struct {
 	Duration string
 }
 
+// funcResponse takes in the StatusCode and Content from other functions to display to the user's slack.
+type funcResponse struct {
+	// StatusCode is the http code that will be returned back to the user.
+	StatusCode int `json:"statusCode"`
+	// Content will contain the presigned url, error messages, or success messages.
+	Body string `json:"body"`
+}
+
 var (
 	auth_tok, app_tok, channelid, url string
 )
@@ -132,10 +140,9 @@ func main() {
 									"error": err.Error(),
 								}).Error("error handling email response")
 							}
-							bytes, _ := io.ReadAll(emailResponse.Body)
 							slackRequest = &SlackRequest{
 								StatusCode: emailResponse.StatusCode,
-								Content:    string(bytes),
+								Content:    emailResponse.Body,
 							}
 						case "/sms":
 							smsResponse, err := handleSMS(command)
@@ -144,10 +151,9 @@ func main() {
 									"error": err.Error(),
 								}).Error("error handling sms response")
 							}
-							bytes, _ := io.ReadAll(smsResponse.Body)
 							slackRequest = &SlackRequest{
 								StatusCode: smsResponse.StatusCode,
-								Content:    string(bytes),
+								Content:    smsResponse.Body,
 							}
 						case "/url":
 							urlResponse, err := handleURL(command)
@@ -156,13 +162,15 @@ func main() {
 									"error": err.Error(),
 								}).Error("error handling url response")
 							}
-							bytes, _ := io.ReadAll(urlResponse.Body)
 							slackRequest = &SlackRequest{
 								StatusCode: urlResponse.StatusCode,
-								Content:    string(bytes),
+								Content:    urlResponse.Body,
 							}
 						default:
-							return nil
+							slackRequest = &SlackRequest{
+								StatusCode: 404,
+								Content:    "command not found",
+							}
 						}
 						err = makeRequest(slackRequest, api)
 						if err != nil {
@@ -178,7 +186,10 @@ func main() {
 	})
 
 	eg.Go(func() error {
-		client.Run()
+		err := client.Run()
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 
@@ -188,7 +199,7 @@ func main() {
 	}
 }
 
-func handleEmail(command slack.SlashCommand) (*http.Response, error) {
+func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -206,15 +217,17 @@ func handleEmail(command slack.SlashCommand) (*http.Response, error) {
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return res, err
+	res, _ := http.DefaultClient.Do(req)
+	bytes, _ := io.ReadAll(res.Body)
+	resp := &funcResponse{
+		StatusCode: res.StatusCode,
+		Body:       string(bytes),
 	}
 	defer res.Body.Close()
-	return res, nil
+	return resp, nil
 }
 
-func handleSMS(command slack.SlashCommand) (*http.Response, error) {
+func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -231,15 +244,17 @@ func handleSMS(command slack.SlashCommand) (*http.Response, error) {
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return res, err
+	res, _ := http.DefaultClient.Do(req)
+	bytes, _ := io.ReadAll(res.Body)
+	resp := &funcResponse{
+		StatusCode: res.StatusCode,
+		Body:       string(bytes),
 	}
 	defer res.Body.Close()
-	return res, nil
+	return resp, nil
 }
 
-func handleURL(command slack.SlashCommand) (*http.Response, error) {
+func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -255,12 +270,14 @@ func handleURL(command slack.SlashCommand) (*http.Response, error) {
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return res, err
+	res, _ := http.DefaultClient.Do(req)
+	bytes, _ := io.ReadAll(res.Body)
+	resp := &funcResponse{
+		StatusCode: res.StatusCode,
+		Body:       string(bytes),
 	}
 	defer res.Body.Close()
-	return res, nil
+	return resp, nil
 }
 
 func deleteEmpty(s []string) []string {
