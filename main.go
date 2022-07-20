@@ -186,11 +186,7 @@ func main() {
 	})
 
 	eg.Go(func() error {
-		err := client.Run()
-		if err != nil {
-			return err
-		}
-		return nil
+		return client.Run()
 	})
 
 	err := eg.Wait()
