@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,16 +16,16 @@ import (
 	"github.com/slack-go/slack/socketmode"
 )
 
-// Request takes in the StatusCode and Content from other functions to display to the user's slack.
-type Request struct {
+// SlackRequest takes in the StatusCode and Content from other functions to display to the user's slack.
+type SlackRequest struct {
 	// StatusCode is the http code that will be returned back to the user.
 	StatusCode int `json:"statusCode"`
 	// Content will contain the presigned url, error messages, or success messages.
 	Content string `json:"body"`
 }
 
-// Response returns back the http code, type of data, and the presigned url to the user.
-type Response struct {
+// SlackResponse returns back the http code, type of data, and the presigned url to the user.
+type SlackResponse struct {
 	// StatusCode is the http code that will be returned back to the user.
 	StatusCode int `json:"statusCode,omitempty"`
 	// Headers is the information about the type of data being returned back.
@@ -69,10 +68,6 @@ type Url struct {
 
 var (
 	auth_tok, app_tok, channelid, url string
-	// ErrRequest will return an error if the request was not successful.
-	ErrRequest = errors.New("request was not successful")
-	// ErrClosed will return an error if the channel provided is closed.
-	ErrClosed = errors.New("channel closed")
 )
 
 func init() {
@@ -94,9 +89,9 @@ func init() {
 	}
 }
 
-// Main configures a client with socketmode and slacks API using the token, app token, and channelid that the slack bot will be in,
+// main configures a client with socketmode and slacks API using the token, app token, and channelid that the slack bot will be in,
 // handles the different slash commands, and returns back a slack attachment with the body returned by the different functions.
-func Main(in Request) {
+func main() {
 	api := slack.New(auth_tok, slack.OptionDebug(true), slack.OptionAppLevelToken(app_tok))
 	client := socketmode.New(
 		api,
@@ -106,11 +101,11 @@ func Main(in Request) {
 	c, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func(c context.Context, api *slack.Client, client *socketmode.Client) (*Response, error) {
+	go func(c context.Context, api *slack.Client, client *socketmode.Client) error {
 		for {
 			select {
 			case <-c.Done():
-				return &Response{StatusCode: http.StatusBadRequest}, ErrClosed
+				return nil
 			case event := <-client.Events:
 				switch event.Type {
 				case socketmode.EventTypeSlashCommand:
@@ -119,22 +114,48 @@ func Main(in Request) {
 						continue
 					}
 					client.Ack(*event.Request)
-					var err error
+					var (
+						err          error
+						slackRequest *SlackRequest
+					)
 					switch command.Command {
 					case "/emails":
-						err = handleEmail(in, command, *api)
+						emailResponse, err := handleEmail(command)
+						if err != nil {
+							return err
+						}
+						bytes, _ := io.ReadAll(emailResponse.Body)
+						slackRequest = &SlackRequest{
+							StatusCode: emailResponse.StatusCode,
+							Content:    string(bytes),
+						}
 					case "/sms":
-						err = handleSMS(in, command, *api)
+						smsResponse, err := handleSMS(command)
+						if err != nil {
+							return err
+						}
+						bytes, _ := io.ReadAll(smsResponse.Body)
+						slackRequest = &SlackRequest{
+							StatusCode: smsResponse.StatusCode,
+							Content:    string(bytes),
+						}
 					case "/url":
-						err = handleURL(in, command, *api)
+						urlResponse, err := handleURL(command)
+						if err != nil {
+							return err
+						}
+						bytes, _ := io.ReadAll(urlResponse.Body)
+						slackRequest = &SlackRequest{
+							StatusCode: urlResponse.StatusCode,
+							Content:    string(bytes),
+						}
+					default:
+						return nil
 					}
+					err = makeRequest(slackRequest, api)
 					if err != nil {
-						return &Response{StatusCode: http.StatusBadRequest}, err
+						return err
 					}
-					return &Response{
-						StatusCode: http.StatusOK,
-						Body:       "success",
-					}, nil
 				}
 			}
 		}
@@ -142,7 +163,7 @@ func Main(in Request) {
 	client.Run()
 }
 
-func handleEmail(in Request, command slack.SlashCommand, api slack.Client) error {
+func handleEmail(command slack.SlashCommand) (*http.Response, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -156,26 +177,19 @@ func handleEmail(in Request, command slack.SlashCommand, api slack.Client) error
 		Subject: subject,
 		Message: contentstr,
 	}
-	json, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	json, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return res, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return ErrRequest
-	}
-	createMessage(in, api)
-	return nil
+	return res, nil
 }
 
-func handleSMS(in Request, command slack.SlashCommand, api slack.Client) error {
+func handleSMS(command slack.SlashCommand) (*http.Response, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -188,26 +202,19 @@ func handleSMS(in Request, command slack.SlashCommand, api slack.Client) error {
 		To:      to,
 		Message: msgstr,
 	}
-	json, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	json, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return res, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return ErrRequest
-	}
-	createMessage(in, api)
-	return nil
+	return res, nil
 }
 
-func handleURL(in Request, command slack.SlashCommand, api slack.Client) error {
+func handleURL(command slack.SlashCommand) (*http.Response, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
@@ -219,23 +226,16 @@ func handleURL(in Request, command slack.SlashCommand, api slack.Client) error {
 		Type:     request,
 		Duration: duration,
 	}
-	json, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	json, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return res, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return ErrRequest
-	}
-	createMessage(in, api)
-	return nil
+	return res, nil
 }
 
 func deleteEmpty(s []string) []string {
@@ -248,7 +248,7 @@ func deleteEmpty(s []string) []string {
 	return temp
 }
 
-func createMessage(in Request, api slack.Client) {
+func makeRequest(in *SlackRequest, api *slack.Client) error {
 	code := strconv.Itoa(in.StatusCode)
 	attachment := slack.Attachment{
 		Color: "#0069ff",
@@ -260,13 +260,13 @@ func createMessage(in Request, api slack.Client) {
 		},
 		Footer: "DigitalOcean" + " | " + time.Now().Format("01-02-2006 3:4:5 MST"),
 	}
-	_, timestamp, err := api.PostMessage(
+	_, _, err := api.PostMessage(
 		channelid,
 		slack.MsgOptionAttachments(attachment),
 		slack.MsgOptionAsUser(true),
 	)
 	if err != nil {
-		log.Fatalf("%s\n", err)
+		return err
 	}
-	log.Printf("Message successfully sent at %s\n", timestamp)
+	return nil
 }
