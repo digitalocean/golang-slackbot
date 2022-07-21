@@ -144,7 +144,7 @@ func main() {
 						slackRequest *SlackRequest
 					)
 					switch command.Command {
-					case "/emails":
+					case EmailsCommand:
 						emailResponse, err := handleEmail(command)
 						if err != nil {
 							logger.WithFields(logrus.Fields{
@@ -155,7 +155,7 @@ func main() {
 							StatusCode: emailResponse.StatusCode,
 							Content:    emailResponse.Body,
 						}
-					case "/sms":
+					case SmsCommand:
 						smsResponse, err := handleSMS(command)
 						if err != nil {
 							logger.WithFields(logrus.Fields{
@@ -166,7 +166,7 @@ func main() {
 							StatusCode: smsResponse.StatusCode,
 							Content:    smsResponse.Body,
 						}
-					case "/url":
+					case UrlCommand:
 						urlResponse, err := handleURL(command)
 						if err != nil {
 							logger.WithFields(logrus.Fields{
