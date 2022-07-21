@@ -1,9 +1,0 @@
-environment:
-  AUTH_TOKEN: ${AUTH_TOKEN}
-  APP_TOKEN: ${APP_TOKEN}
-  CHANNEL_ID: ${CHANNEL_ID}
-packages:
-  - name: sample
-    actions:
-      - name: slackbot
-        runtime: 'go:default'

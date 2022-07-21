@@ -8,7 +8,5 @@ spec:
       deploy_on_push: true
       repo: digitalocean/golang-slackbot
     name: slackbot-api
-    routes:
-    - path: /
     source_dir: /
   name: slackbot

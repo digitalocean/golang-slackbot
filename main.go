@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -79,6 +80,17 @@ type funcResponse struct {
 
 var (
 	auth_tok, app_tok, channelid, url string
+	// ErrNotEnoughArgs will return an error if the user does not provide the right number of arguments.
+	ErrNotEnoughArgs = errors.New("not enough arguments provided")
+)
+
+const (
+	// EmailsCommand is the slash command to send an email.
+	EmailsCommand = "/emails"
+	// SmsCommand is the slash command to send sms.
+	SmsCommand = "/sms"
+	// UrlCommand is the slash command to get a presigned url.
+	UrlCommand = "/url"
 )
 
 func init() {
@@ -115,76 +127,72 @@ func main() {
 	defer cancel()
 
 	eg.Go(func() error {
-		go func(c context.Context, api *slack.Client, client *socketmode.Client) error {
-			for {
-				select {
-				case <-c.Done():
-					return nil
-				case event := <-client.Events:
-					switch event.Type {
-					case socketmode.EventTypeSlashCommand:
-						command, ok := event.Data.(slack.SlashCommand)
-						if !ok {
-							continue
-						}
-						client.Ack(*event.Request)
-						var (
-							err          error
-							slackRequest *SlackRequest
-						)
-						switch command.Command {
-						case "/emails":
-							emailResponse, err := handleEmail(command)
-							if err != nil {
-								logger.WithFields(logrus.Fields{
-									"error": err.Error(),
-								}).Error("error handling email response")
-							}
-							slackRequest = &SlackRequest{
-								StatusCode: emailResponse.StatusCode,
-								Content:    emailResponse.Body,
-							}
-						case "/sms":
-							smsResponse, err := handleSMS(command)
-							if err != nil {
-								logger.WithFields(logrus.Fields{
-									"error": err.Error(),
-								}).Error("error handling sms response")
-							}
-							slackRequest = &SlackRequest{
-								StatusCode: smsResponse.StatusCode,
-								Content:    smsResponse.Body,
-							}
-						case "/url":
-							urlResponse, err := handleURL(command)
-							if err != nil {
-								logger.WithFields(logrus.Fields{
-									"error": err.Error(),
-								}).Error("error handling url response")
-							}
-							slackRequest = &SlackRequest{
-								StatusCode: urlResponse.StatusCode,
-								Content:    urlResponse.Body,
-							}
-						default:
-							slackRequest = &SlackRequest{
-								StatusCode: 404,
-								Content:    "command not found",
-							}
-						}
-						err = makeRequest(slackRequest, api)
+		for {
+			select {
+			case <-c.Done():
+				return nil
+			case event := <-client.Events:
+				switch event.Type {
+				case socketmode.EventTypeSlashCommand:
+					command, ok := event.Data.(slack.SlashCommand)
+					if !ok {
+						continue
+					}
+					client.Ack(*event.Request)
+					var (
+						err          error
+						slackRequest *SlackRequest
+					)
+					switch command.Command {
+					case "/emails":
+						emailResponse, err := handleEmail(command)
 						if err != nil {
 							logger.WithFields(logrus.Fields{
 								"error": err.Error(),
-							}).Error("error sending slack attachment")
+							}).Error("error handling email response")
 						}
+						slackRequest = &SlackRequest{
+							StatusCode: emailResponse.StatusCode,
+							Content:    emailResponse.Body,
+						}
+					case "/sms":
+						smsResponse, err := handleSMS(command)
+						if err != nil {
+							logger.WithFields(logrus.Fields{
+								"error": err.Error(),
+							}).Error("error handling sms response")
+						}
+						slackRequest = &SlackRequest{
+							StatusCode: smsResponse.StatusCode,
+							Content:    smsResponse.Body,
+						}
+					case "/url":
+						urlResponse, err := handleURL(command)
+						if err != nil {
+							logger.WithFields(logrus.Fields{
+								"error": err.Error(),
+							}).Error("error handling url response")
+						}
+						slackRequest = &SlackRequest{
+							StatusCode: urlResponse.StatusCode,
+							Content:    urlResponse.Body,
+						}
+					default:
+						slackRequest = &SlackRequest{
+							StatusCode: 404,
+							Content:    "command not found",
+						}
+					}
+					err = makeRequest(slackRequest, api)
+					if err != nil {
+						logger.WithFields(logrus.Fields{
+							"error": err.Error(),
+						}).Error("error sending slack attachment")
 					}
 				}
 			}
-		}(c, api, client)
-		return nil
+		}
 	})
-
 	eg.Go(func() error {
 		return client.Run()
 	})
@@ -199,9 +207,15 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
+	if len(temp) < 4 {
+		resp := &funcResponse{
+			StatusCode: http.StatusBadRequest,
+		}
+		return resp, ErrNotEnoughArgs
+	}
 	from, to, subject, content := temp[0], temp[1], temp[2], temp[3:]
 	contentstr := strings.Join(content, " ")
-	url = (fmt.Sprintf("%s/sendgrid-email", url))
+	emailUrl := fmt.Sprintf("%s/sendgrid-email", url)
 
 	payload := Email{
 		From:    from,
@@ -209,12 +223,36 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 		Subject: subject,
 		Message: contentstr,
 	}
-	json, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
+	json, err := json.Marshal(payload)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	req, err := http.NewRequest("POST", emailUrl, bytes.NewBuffer(json))
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	bytes, _ := io.ReadAll(res.Body)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	resp := &funcResponse{
 		StatusCode: res.StatusCode,
 		Body:       string(bytes),
@@ -227,21 +265,51 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
+	if len(temp) < 3 {
+		resp := &funcResponse{
+			StatusCode: http.StatusBadRequest,
+		}
+		return resp, ErrNotEnoughArgs
+	}
 	from, to, msg := temp[0], temp[1], temp[2:]
 	msgstr := strings.Join(msg, " ")
-	url = (fmt.Sprintf("%s/twilio-sms", url))
+	smsUrl := fmt.Sprintf("%s/twilio-sms", url)
 
 	payload := Sms{
 		Number:  from,
 		To:      to,
 		Message: msgstr,
 	}
-	json, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
+	json, err := json.Marshal(payload)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	req, err := http.NewRequest("POST", smsUrl, bytes.NewBuffer(json))
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	bytes, _ := io.ReadAll(res.Body)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	resp := &funcResponse{
 		StatusCode: res.StatusCode,
 		Body:       string(bytes),
@@ -254,20 +322,50 @@ func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 	params := &slack.Msg{Text: command.Text}
 	str := strings.Split(params.Text, " ")
 	temp := deleteEmpty(str)
+	if len(temp) < 3 {
+		resp := &funcResponse{
+			StatusCode: http.StatusBadRequest,
+		}
+		return resp, ErrNotEnoughArgs
+	}
 	filename, request, duration := temp[0], temp[1], temp[2]
-	url = (fmt.Sprintf("%s/presigned-url", url))
+	preUrl := fmt.Sprintf("%s/presigned-url", url)
 
 	payload := Url{
 		Filename: filename,
 		Type:     request,
 		Duration: duration,
 	}
-	json, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json))
+	json, err := json.Marshal(payload)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	req, err := http.NewRequest("POST", preUrl, bytes.NewBuffer(json))
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	bytes, _ := io.ReadAll(res.Body)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		resp := &funcResponse{
+			StatusCode: http.StatusInternalServerError,
+		}
+		return resp, err
+	}
 	resp := &funcResponse{
 		StatusCode: res.StatusCode,
 		Body:       string(bytes),
