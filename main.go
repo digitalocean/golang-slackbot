@@ -227,7 +227,6 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -284,7 +283,6 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -340,7 +338,6 @@ func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
