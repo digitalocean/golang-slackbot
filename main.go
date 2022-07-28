@@ -51,10 +51,10 @@ type Email struct {
 
 // Sms is the json struct of the sms message that contains the phone numbers and message.
 type Sms struct {
-	// Number is the user's phone number that they are sending from.
-	Number string `json:"number"`
-	// To is the phone number they are sending a message to.
-	To string `json:"to"`
+	// From is the user's phone number that they are sending from.
+	From string
+	// Number is the phone number they are sending a message to.
+	Number string
 	// Message is the body of the message that the user wants to send.
 	Message string `json:"message"`
 }
@@ -260,13 +260,13 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, ErrNotEnoughArgs
 	}
-	from, to, msg := temp[0], temp[1], temp[2:]
+	from, number, msg := temp[0], temp[1], temp[2:]
 	msgstr := strings.Join(msg, " ")
 	smsUrl := fmt.Sprintf("%s/twilio-sms/sample/sms", url)
 
 	payload := Sms{
-		Number:  from,
-		To:      to,
+		From:    from,
+		Number:  number,
 		Message: msgstr,
 	}
 	json, err := json.Marshal(payload)
