@@ -12,7 +12,7 @@ The slack bot takes in 3 slash commmands: presigned url, twilio sms, and sendgri
 
 * You need to create a slack app and enable SocketMode. You can learn more at https://api.slack.com/apis/connections/socket. 
 * I've attached a `manifest.yml` file if you'd like to set up the app with manifests. The manifest file contains the scopes of the bot you will be adding to allow the bot to read and write to the channel as well as accept slash commands.
-* You need to add your `AUTH_TOKEN`, `APP_TOKEN`, and `CHANNEL_ID` to the `.env` file to connect to the Slack API as well as your channel that you will be adding the slack bot to.
+* You need to add your `AUTH_TOKEN`, `APP_TOKEN`, `CHANNEL_ID` and `URL` to the `.env` file to connect to the Slack API as well as your channel that you will be adding the slack bot to.
 
 NOTE: If you decide not to use the `manifest.yml` to create an app, here are some things you need to make sure are activated for your app.
 - Activate Socket Mode
@@ -31,6 +31,11 @@ NOTE: If you decide not to use the `manifest.yml` to create an app, here are som
     - `commands` : using slash commands
     - `incoming-webhook` : post attachments & messages to channels
 
+## Adding Routes in App Component Setings
+* You will need to add the routes to connect to the following sample functions:
+- /presigned-url
+- /twilio-sms
+- /sendgrid-email
 
 ## Using the Slash Commands in Slack
 

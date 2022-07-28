@@ -215,7 +215,7 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 	}
 	from, to, subject, content := temp[0], temp[1], temp[2], temp[3:]
 	contentstr := strings.Join(content, " ")
-	emailUrl := fmt.Sprintf("%s/sendgrid-email", url)
+	emailUrl := fmt.Sprintf("%s/sendgrid-email/sample/emails", url)
 
 	payload := Email{
 		From:    from,
@@ -273,7 +273,7 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 	}
 	from, to, msg := temp[0], temp[1], temp[2:]
 	msgstr := strings.Join(msg, " ")
-	smsUrl := fmt.Sprintf("%s/twilio-sms", url)
+	smsUrl := fmt.Sprintf("%s/twilio-sms/sample/sms", url)
 
 	payload := Sms{
 		Number:  from,
@@ -329,7 +329,7 @@ func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 		return resp, ErrNotEnoughArgs
 	}
 	filename, request, duration := temp[0], temp[1], temp[2]
-	preUrl := fmt.Sprintf("%s/presigned-url", url)
+	preUrl := fmt.Sprintf("%s/presigned-url/presign/url", url)
 
 	payload := Url{
 		Filename: filename,
