@@ -145,7 +145,7 @@ func main() {
 					case EmailsCommand:
 						emailResponse, err := handleEmail(command)
 						if err != nil {
-							fmt.Printf("error handling email response: %s\n", err.Error())
+							fmt.Fprintf(os.Stderr, "error handling email response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: emailResponse.StatusCode,
@@ -154,7 +154,7 @@ func main() {
 					case SmsCommand:
 						smsResponse, err := handleSMS(command)
 						if err != nil {
-							fmt.Printf("error handling sms response: %s\n", err.Error())
+							fmt.Fprintf(os.Stderr, "error handling sms response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: smsResponse.StatusCode,
@@ -163,7 +163,7 @@ func main() {
 					case UrlCommand:
 						urlResponse, err := handleURL(command)
 						if err != nil {
-							fmt.Printf("error handling url response: %s\n", err.Error())
+							fmt.Fprintf(os.Stderr, "error handling url response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: urlResponse.StatusCode,
@@ -177,7 +177,7 @@ func main() {
 					}
 					err = makeRequest(slackRequest, api)
 					if err != nil {
-						fmt.Printf("error sending slack attachment: %s\n", err.Error())
+						fmt.Fprintf(os.Stderr, "error sending slack attachment: %s\n", err.Error())
 					}
 				}
 			}
