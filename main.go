@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"golang.org/x/sync/errgroup"
@@ -79,7 +78,7 @@ type funcResponse struct {
 }
 
 var (
-	auth_tok, app_tok, channelid, url string
+	authToken, appToken, channelid, url string
 	// ErrNotEnoughArgs will return an error if the user does not provide the right number of arguments.
 	ErrNotEnoughArgs = errors.New("not enough arguments provided")
 )
@@ -94,13 +93,13 @@ const (
 )
 
 func init() {
-	auth_tok = os.Getenv("AUTH_TOKEN")
-	if auth_tok == "" {
-		panic("no auth_tok provided")
+	authToken = os.Getenv("AUTH_TOKEN")
+	if authToken == "" {
+		panic("no authToken provided")
 	}
-	app_tok = os.Getenv("APP_TOKEN")
-	if app_tok == "" {
-		panic("no app_tok provided")
+	appToken = os.Getenv("APP_TOKEN")
+	if appToken == "" {
+		panic("no appToken provided")
 	}
 	channelid = os.Getenv("CHANNEL_ID")
 	if channelid == "" {
@@ -116,9 +115,7 @@ func init() {
 // handles the different slash commands, and returns back a slack attachment with the body returned by the different functions.
 func main() {
 	var eg errgroup.Group
-	logger := logrus.New()
-	logger.SetOutput(os.Stdout)
-	api := slack.New(auth_tok, slack.OptionDebug(true), slack.OptionAppLevelToken(app_tok))
+	api := slack.New(authToken, slack.OptionDebug(true), slack.OptionAppLevelToken(appToken))
 	client := socketmode.New(
 		api,
 		socketmode.OptionDebug(true),
@@ -148,9 +145,7 @@ func main() {
 					case EmailsCommand:
 						emailResponse, err := handleEmail(command)
 						if err != nil {
-							logger.WithFields(logrus.Fields{
-								"error": err.Error(),
-							}).Error("error handling email response")
+							log.Printf("error handling email response: %s", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: emailResponse.StatusCode,
@@ -159,9 +154,7 @@ func main() {
 					case SmsCommand:
 						smsResponse, err := handleSMS(command)
 						if err != nil {
-							logger.WithFields(logrus.Fields{
-								"error": err.Error(),
-							}).Error("error handling sms response")
+							log.Printf("error handling sms response: %s", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: smsResponse.StatusCode,
@@ -170,9 +163,7 @@ func main() {
 					case UrlCommand:
 						urlResponse, err := handleURL(command)
 						if err != nil {
-							logger.WithFields(logrus.Fields{
-								"error": err.Error(),
-							}).Error("error handling url response")
+							log.Printf("error handling url response: %s", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: urlResponse.StatusCode,
@@ -186,9 +177,7 @@ func main() {
 					}
 					err = makeRequest(slackRequest, api)
 					if err != nil {
-						logger.WithFields(logrus.Fields{
-							"error": err.Error(),
-						}).Error("error sending slack attachment")
+						log.Printf("error sending slack attachment: %s", err.Error())
 					}
 				}
 			}
