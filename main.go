@@ -145,7 +145,7 @@ func main() {
 					case EmailsCommand:
 						emailResponse, err := handleEmail(command)
 						if err != nil {
-							log.Printf("error handling email response: %s", err.Error())
+							fmt.Printf("error handling email response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: emailResponse.StatusCode,
@@ -154,7 +154,7 @@ func main() {
 					case SmsCommand:
 						smsResponse, err := handleSMS(command)
 						if err != nil {
-							log.Printf("error handling sms response: %s", err.Error())
+							fmt.Printf("error handling sms response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: smsResponse.StatusCode,
@@ -163,7 +163,7 @@ func main() {
 					case UrlCommand:
 						urlResponse, err := handleURL(command)
 						if err != nil {
-							log.Printf("error handling url response: %s", err.Error())
+							fmt.Printf("error handling url response: %s\n", err.Error())
 						}
 						slackRequest = &SlackRequest{
 							StatusCode: urlResponse.StatusCode,
@@ -177,7 +177,7 @@ func main() {
 					}
 					err = makeRequest(slackRequest, api)
 					if err != nil {
-						log.Printf("error sending slack attachment: %s", err.Error())
+						fmt.Printf("error sending slack attachment: %s\n", err.Error())
 					}
 				}
 			}
@@ -220,7 +220,7 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req, err := http.NewRequest("POST", emailUrl, bytes.NewBuffer(json))
+	req, err := http.NewRequest(http.MethodPost, emailUrl, bytes.NewBuffer(json))
 	if err != nil {
 		resp := &funcResponse{
 			StatusCode: http.StatusInternalServerError,
@@ -277,7 +277,7 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req, err := http.NewRequest("POST", smsUrl, bytes.NewBuffer(json))
+	req, err := http.NewRequest(http.MethodPost, smsUrl, bytes.NewBuffer(json))
 	if err != nil {
 		resp := &funcResponse{
 			StatusCode: http.StatusInternalServerError,
@@ -333,7 +333,7 @@ func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 		}
 		return resp, err
 	}
-	req, err := http.NewRequest("POST", preUrl, bytes.NewBuffer(json))
+	req, err := http.NewRequest(http.MethodPost, preUrl, bytes.NewBuffer(json))
 	if err != nil {
 		resp := &funcResponse{
 			StatusCode: http.StatusInternalServerError,
