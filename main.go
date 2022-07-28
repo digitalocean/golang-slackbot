@@ -117,6 +117,7 @@ func init() {
 func main() {
 	var eg errgroup.Group
 	logger := logrus.New()
+	logger.SetOutput(os.Stdout)
 	api := slack.New(auth_tok, slack.OptionDebug(true), slack.OptionAppLevelToken(app_tok))
 	client := socketmode.New(
 		api,
