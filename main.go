@@ -40,33 +40,33 @@ type SlackResponse struct {
 // Email is the json struct of the email message that contains the email addresses, subject, and message.
 type Email struct {
 	// From is the email address of the user.
-	From string
+	From string `json:"from"`
 	// To is the email address that the user wants to send to.
-	To string
+	To string `json:"to"`
 	// Subject is the subject of the email that the user wants to send.
-	Subject string
+	Subject string `json:"subject"`
 	// Message is the body of the email that the user wants to send.
-	Message string
+	Message string `json:"message"`
 }
 
 // Sms is the json struct of the sms message that contains the phone numbers and message.
 type Sms struct {
 	// Number is the user's phone number that they are sending from.
-	Number string
+	Number string `json:"number"`
 	// To is the phone number they are sending a message to.
-	To string
+	To string `json:"to"`
 	// Message is the body of the message that the user wants to send.
-	Message string
+	Message string `json:"message"`
 }
 
 // Url is the json struct of the presigned url function that contains the filename, type, and duration.
 type Url struct {
 	// Filename is the name of the file that will be uploaded or downloaded.
-	Filename string
+	Filename string `json:"filename"`
 	// Type is a presigned request type to "GET" or "PUT" an object.
-	Type string
+	Type string `json:"type"`
 	// Duration is the duration in which the presigned url will last.
-	Duration string
+	Duration string `json:"duration"`
 }
 
 // funcResponse takes in the StatusCode and Content from other functions to display to the user's slack.
