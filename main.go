@@ -52,9 +52,9 @@ type Email struct {
 // Sms is the json struct of the sms message that contains the phone numbers and message.
 type Sms struct {
 	// From is the user's phone number that they are sending from.
-	From string
+	From string `json:"from"`
 	// Number is the phone number they are sending a message to.
-	Number string
+	Number string `json:"number"`
 	// Message is the body of the message that the user wants to send.
 	Message string `json:"message"`
 }
