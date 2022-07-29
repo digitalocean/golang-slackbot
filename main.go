@@ -46,7 +46,7 @@ type Email struct {
 	// Subject is the subject of the email that the user wants to send.
 	Subject string `json:"subject"`
 	// Message is the body of the email that the user wants to send.
-	Message string `json:"message"`
+	Content string `json:"content"`
 }
 
 // Sms is the json struct of the sms message that contains the phone numbers and message.
@@ -211,7 +211,7 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 		From:    from,
 		To:      to,
 		Subject: subject,
-		Message: contentstr,
+		Content: contentstr,
 	}
 	json, err := json.Marshal(payload)
 	if err != nil {
