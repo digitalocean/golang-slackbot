@@ -200,6 +200,7 @@ func handleEmail(command slack.SlashCommand) (*funcResponse, error) {
 	if len(temp) < 4 {
 		resp := &funcResponse{
 			StatusCode: http.StatusBadRequest,
+			Body:       ErrNotEnoughArgs.Error(),
 		}
 		return resp, ErrNotEnoughArgs
 	}
@@ -257,6 +258,7 @@ func handleSMS(command slack.SlashCommand) (*funcResponse, error) {
 	if len(temp) < 3 {
 		resp := &funcResponse{
 			StatusCode: http.StatusBadRequest,
+			Body:       ErrNotEnoughArgs.Error(),
 		}
 		return resp, ErrNotEnoughArgs
 	}
@@ -313,6 +315,7 @@ func handleURL(command slack.SlashCommand) (*funcResponse, error) {
 	if len(temp) < 3 {
 		resp := &funcResponse{
 			StatusCode: http.StatusBadRequest,
+			Body:       ErrNotEnoughArgs.Error(),
 		}
 		return resp, ErrNotEnoughArgs
 	}
