@@ -32,18 +32,12 @@ NOTE: If you decide not to use the `manifest.yml` to create an app, here are som
     - `incoming-webhook` : post attachments & messages to channels
 
 ## Adding Routes in App Component Setings
-* You will need to add the routes to connect to the following sample functions:
+You will need to add the routes to connect to the following sample functions:
 - /presigned-url
 - /twilio-sms
 - /sendgrid-email
 
 ## Using the Slash Commands in Slack
-
-NOTE: If you do not use the correct number of arguments, slackbot will give you the following error and shut down socketmode:
-```bash
-/command failed with the error "dispatch_failed"
-```
-Please be sure to enter the correct number of arguements for each slash command.
 
 ### To send a SMS using the Twilio API function
 
